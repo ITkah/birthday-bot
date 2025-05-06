@@ -29,6 +29,36 @@ function saveConfig(data) {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2));
 }
 
+// /test — вручную проверить поздравление
+bot.command('test', (ctx) => {
+  if (!isAdmin(ctx)) {
+    return ctx.reply('⛔ You are not allowed to use this command.');
+  }
+
+  const today = new Date().toISOString().slice(5, 10); // MM-DD
+  const birthdays = loadBirthdays();
+  const config = loadConfig();
+
+  let found = false;
+
+  birthdays.forEach((person) => {
+    if (person.date === today) {
+      const message = config.greeting
+        .replace('{name}', person.name)
+        .replace('{username}', person.username);
+      bot.telegram.sendMessage(CHAT_ID, message);
+      found = true;
+    }
+  });
+
+  if (!found) {
+    ctx.reply('ℹ️ No birthdays today.');
+  } else {
+    ctx.reply('✅ Test message sent.');
+  }
+});
+
+
 bot.use((ctx, next) => {
     if (ctx.chat.type === 'private' && !isAdmin(ctx)) {
       return; // silently ignore
