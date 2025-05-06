@@ -8,76 +8,62 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 const BIRTHDAYS_FILE = './birthdays.json';
 const CONFIG_FILE = './config.json';
 const CHAT_ID = process.env.CHAT_ID;
-const ADMIN_ID = Number(process.env.ADMIN_ID);
 
 function isAdmin(ctx) {
-  return ctx.from.id === ADMIN_ID;
+  return ctx.from.id === Number(process.env.ADMIN_ID);
 }
 
 function loadBirthdays() {
   try {
     return JSON.parse(fs.readFileSync(BIRTHDAYS_FILE));
-  } catch (err) {
-    console.error('❌ Failed to load birthdays:', err.message);
+  } catch {
     return [];
   }
 }
 
 function saveBirthdays(data) {
   fs.writeFileSync(BIRTHDAYS_FILE, JSON.stringify(data, null, 2));
-  console.log('✅ Birthdays saved.');
 }
 
 function loadConfig() {
   try {
     return JSON.parse(fs.readFileSync(CONFIG_FILE));
-  } catch (err) {
-    console.error('❌ Failed to load config:', err.message);
+  } catch {
     return { greeting: 'Happy Birthday, {name}! @{username}' };
   }
 }
 
 function saveConfig(data) {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2));
-  console.log('✅ Config saved.');
 }
-
-bot.use((ctx, next) => {
-  const isPrivate = ctx.chat.type === 'private';
-  const isFromAdmin = isAdmin(ctx);
-
-  if (isPrivate && !isFromAdmin) {
-    return; 
-  }
-
-  return next(); 
-});
-
 
 bot.on('message', (ctx) => {
   console.log(`📢 Message from ${ctx.from.username || ctx.from.first_name}, chat ID: ${ctx.chat.id}`);
 });
 
+bot.use((ctx, next) => {
+  if (ctx.chat.type === 'private') {
+    return next();
+  }
+  return; 
+});
+
 bot.start((ctx) => {
-  console.log('/start');
-  ctx.reply('👋 Hi! I am a birthday bot. Use /add, /remove, /update, /setgreeting, /list etc.');
+  ctx.reply('👋 Hi! I`m a congratulator bot. Use commands /add, /remove, /list и т.д.');
 });
 
 bot.command('whoami', (ctx) => {
-  console.log('/whoami');
-  ctx.reply(`Your Telegram ID is: ${ctx.from.id}`);
+  ctx.reply(`🆔 Your Telegram ID: ${ctx.from.id}`);
 });
 
 bot.command('add', (ctx) => {
-  console.log('/add');
   const args = ctx.message.text.split(' ').slice(1);
   if (args.length < 3) return ctx.reply('❗ Format: /add Name MM-DD username');
-
   const [name, date, username] = args;
-  const birthdays = loadBirthdays();
 
+  const birthdays = loadBirthdays();
   if (birthdays.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-    return ctx.reply('⚠ This person is already in the list.');
+    return ctx.reply('⚠ Such a person already exists.');
   }
 
   birthdays.push({ name, date, username });
@@ -86,7 +72,6 @@ bot.command('add', (ctx) => {
 });
 
 bot.command('remove', (ctx) => {
-  console.log('/remove');
   const name = ctx.message.text.split(' ').slice(1).join(' ');
   if (!name) return ctx.reply('❗ Format: /remove Name');
 
@@ -94,21 +79,20 @@ bot.command('remove', (ctx) => {
   const before = birthdays.length;
   birthdays = birthdays.filter(p => p.name.toLowerCase() !== name.toLowerCase());
 
-  if (birthdays.length === before) return ctx.reply('⚠ Person not found.');
+  if (birthdays.length === before) return ctx.reply('⚠ Such a person has not been found..');
   saveBirthdays(birthdays);
-  ctx.reply(`🗑 Removed: ${name}`);
+  ctx.reply(`🗑 Удалено: ${name}`);
 });
 
 bot.command('update', (ctx) => {
-  console.log('/update');
   const args = ctx.message.text.split(' ').slice(1);
   if (args.length < 3) return ctx.reply('❗ Format: /update Name MM-DD username');
-
   const [name, newDate, newUsername] = args;
+
   const birthdays = loadBirthdays();
   const person = birthdays.find(p => p.name.toLowerCase() === name.toLowerCase());
+  if (!person) return ctx.reply('⚠ Such a person has not been found..');
 
-  if (!person) return ctx.reply('⚠ Person not found.');
   person.date = newDate;
   person.username = newUsername;
   saveBirthdays(birthdays);
@@ -116,66 +100,57 @@ bot.command('update', (ctx) => {
 });
 
 bot.command('list', (ctx) => {
-  console.log('/list');
   const birthdays = loadBirthdays();
-  if (!birthdays.length) return ctx.reply('📭 Birthday list is empty.');
+  if (!birthdays.length) return ctx.reply('📭 Список пуст.');
 
   const list = birthdays.map(p => `• ${p.name} — ${p.date} — @${p.username}`).join('\n');
-  ctx.reply(`📋 Birthday list:\n${list}`);
+  ctx.reply(`📋 List of birthdays:\n${list}`);
 });
 
 bot.command('setgreeting', (ctx) => {
-  console.log('/setgreeting');
-  const newText = ctx.message.text.split(' ').slice(1).join(' ');
-  if (!newText.includes('{name}') || !newText.includes('{username}')) {
-    return ctx.reply('❗ Template must include {name} and {username}');
+  const text = ctx.message.text.split(' ').slice(1).join(' ');
+  if (!text.includes('{name}') || !text.includes('{username}')) {
+    return ctx.reply('❗ The template must contain {name} and {username}');
   }
 
   const config = loadConfig();
-  config.greeting = newText;
+  config.greeting = text;
   saveConfig(config);
-  ctx.reply('✅ Birthday greeting updated.');
+  ctx.reply('✅ Congratulation template updated.');
 });
 
 bot.command('getgreeting', (ctx) => {
-  console.log('/getgreeting');
   const config = loadConfig();
-  ctx.reply(`📨 Current greeting:\n${config.greeting}`);
+  ctx.reply(`📨 Current template:\n${config.greeting}`);
 });
 
 bot.command('test', (ctx) => {
-  console.log('/test');
   const today = new Date().toISOString().slice(5, 10);
   const birthdays = loadBirthdays();
   const config = loadConfig();
 
-  birthdays.forEach(person => {
-    if (person.date === today) {
-      const message = config.greeting
-        .replace('{name}', person.name)
-        .replace('{username}', person.username);
-      bot.telegram.sendMessage(CHAT_ID, message);
-      console.log(`🎉 Sent greeting to ${person.name}`);
+  birthdays.forEach(p => {
+    if (p.date === today) {
+      const msg = config.greeting.replace('{name}', p.name).replace('{username}', p.username);
+      bot.telegram.sendMessage(CHAT_ID, msg);
     }
   });
 
-  ctx.reply('✅ Test message sent to group.');
+  ctx.reply('✅ Test message sent to the group.');
 });
 
 
 cron.schedule('0 9 * * *', () => {
-  console.log('⏰ Cron triggered at 09:00');
   const today = new Date().toISOString().slice(5, 10);
   const birthdays = loadBirthdays();
   const config = loadConfig();
 
-  birthdays.forEach(person => {
+  birthdays.forEach((person) => {
     if (person.date === today) {
       const message = config.greeting
         .replace('{name}', person.name)
         .replace('{username}', person.username);
       bot.telegram.sendMessage(CHAT_ID, message);
-      console.log(`🎉 Sent daily greeting to ${person.name}`);
     }
   });
 });
