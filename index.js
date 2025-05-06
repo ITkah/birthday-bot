@@ -15,8 +15,7 @@ function isAdmin(ctx) {
 
 function loadBirthdays() {
   try {
-    const data = fs.readFileSync(BIRTHDAYS_FILE);
-    return JSON.parse(data);
+    return JSON.parse(fs.readFileSync(BIRTHDAYS_FILE));
   } catch (err) {
     console.error('❌ Failed to load birthdays:', err.message);
     return [];
@@ -30,8 +29,7 @@ function saveBirthdays(data) {
 
 function loadConfig() {
   try {
-    const data = fs.readFileSync(CONFIG_FILE);
-    return JSON.parse(data);
+    return JSON.parse(fs.readFileSync(CONFIG_FILE));
   } catch (err) {
     console.error('❌ Failed to load config:', err.message);
     return { greeting: 'Happy Birthday, {name}! @{username}' };
@@ -45,33 +43,23 @@ function saveConfig(data) {
 
 bot.use((ctx, next) => {
   if (ctx.chat.type === 'private' && isAdmin(ctx)) {
-    return next(); 
-  }
-  if (ctx.chat.type !== 'private') {
-    return next(); 
+    return next();
   }
   return; 
 });
 
-bot.on('message', (ctx) => {
-  console.log(`📢 Message from ${ctx.from.username || ctx.from.first_name}, chat ID: ${ctx.chat.id}`);
-});
-
 bot.start((ctx) => {
-  console.log('/start command triggered');
+  console.log('/start');
   ctx.reply('👋 Hi! I am a birthday bot. Use /add, /remove, /update, /setgreeting, /list etc.');
 });
 
 bot.command('whoami', (ctx) => {
-  console.log('/whoami command');
-  if (!isAdmin(ctx)) return ctx.reply('⛔ You are not allowed to use this command.');
+  console.log('/whoami');
   ctx.reply(`Your Telegram ID is: ${ctx.from.id}`);
 });
 
 bot.command('add', (ctx) => {
-  console.log('/add command');
-  if (!isAdmin(ctx)) return ctx.reply('⛔ You are not allowed to use this command.');
-
+  console.log('/add');
   const args = ctx.message.text.split(' ').slice(1);
   if (args.length < 3) return ctx.reply('❗ Format: /add Name MM-DD username');
 
@@ -88,9 +76,7 @@ bot.command('add', (ctx) => {
 });
 
 bot.command('remove', (ctx) => {
-  console.log('/remove command');
-  if (!isAdmin(ctx)) return ctx.reply('⛔ You are not allowed to use this command.');
-
+  console.log('/remove');
   const name = ctx.message.text.split(' ').slice(1).join(' ');
   if (!name) return ctx.reply('❗ Format: /remove Name');
 
@@ -99,15 +85,12 @@ bot.command('remove', (ctx) => {
   birthdays = birthdays.filter(p => p.name.toLowerCase() !== name.toLowerCase());
 
   if (birthdays.length === before) return ctx.reply('⚠ Person not found.');
-
   saveBirthdays(birthdays);
   ctx.reply(`🗑 Removed: ${name}`);
 });
 
 bot.command('update', (ctx) => {
-  console.log('/update command');
-  if (!isAdmin(ctx)) return ctx.reply('⛔ You are not allowed to use this command.');
-
+  console.log('/update');
   const args = ctx.message.text.split(' ').slice(1);
   if (args.length < 3) return ctx.reply('❗ Format: /update Name MM-DD username');
 
@@ -116,7 +99,6 @@ bot.command('update', (ctx) => {
   const person = birthdays.find(p => p.name.toLowerCase() === name.toLowerCase());
 
   if (!person) return ctx.reply('⚠ Person not found.');
-
   person.date = newDate;
   person.username = newUsername;
   saveBirthdays(birthdays);
@@ -124,9 +106,7 @@ bot.command('update', (ctx) => {
 });
 
 bot.command('list', (ctx) => {
-  console.log('/list command');
-  if (!isAdmin(ctx)) return ctx.reply('⛔ You are not allowed to use this command.');
-
+  console.log('/list');
   const birthdays = loadBirthdays();
   if (!birthdays.length) return ctx.reply('📭 Birthday list is empty.');
 
@@ -135,9 +115,7 @@ bot.command('list', (ctx) => {
 });
 
 bot.command('setgreeting', (ctx) => {
-  console.log('/setgreeting command');
-  if (!isAdmin(ctx)) return ctx.reply('⛔ You are not allowed to use this command.');
-
+  console.log('/setgreeting');
   const newText = ctx.message.text.split(' ').slice(1).join(' ');
   if (!newText.includes('{name}') || !newText.includes('{username}')) {
     return ctx.reply('❗ Template must include {name} and {username}');
@@ -150,17 +128,14 @@ bot.command('setgreeting', (ctx) => {
 });
 
 bot.command('getgreeting', (ctx) => {
-  console.log('/getgreeting command');
-  if (!isAdmin(ctx)) return ctx.reply('⛔ You are not allowed to use this command.');
-
+  console.log('/getgreeting');
   const config = loadConfig();
   ctx.reply(`📨 Current greeting:\n${config.greeting}`);
 });
 
-bot.command('test', (ctx) => {
-  console.log('/test command');
-  if (!isAdmin(ctx)) return ctx.reply('⛔ You are not allowed to use this command.');
 
+bot.command('test', (ctx) => {
+  console.log('/test');
   const today = new Date().toISOString().slice(5, 10);
   const birthdays = loadBirthdays();
   const config = loadConfig();
@@ -174,14 +149,14 @@ bot.command('test', (ctx) => {
       console.log(`🎉 Sent greeting to ${person.name}`);
     }
   });
-  ctx.reply('✅ Test message sent.');
+
+  ctx.reply('✅ Test message sent to group.');
 });
 
+// ✅ Ежедневно поздравляем в 09:00 по серверу
 cron.schedule('0 9 * * *', () => {
   console.log('⏰ Cron triggered at 09:00');
   const today = new Date().toISOString().slice(5, 10);
-  console.log(`📅 Today is: ${today}`);
-
   const birthdays = loadBirthdays();
   const config = loadConfig();
 
@@ -191,7 +166,7 @@ cron.schedule('0 9 * * *', () => {
         .replace('{name}', person.name)
         .replace('{username}', person.username);
       bot.telegram.sendMessage(CHAT_ID, message);
-      console.log(`🎉 Sent cron greeting to ${person.name}`);
+      console.log(`🎉 Sent daily greeting to ${person.name}`);
     }
   });
 });
