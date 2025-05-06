@@ -41,6 +41,10 @@ function saveConfig(data) {
   console.log('✅ Config saved.');
 }
 
+bot.on('message', (ctx) => {
+  console.log(`📢 Message from ${ctx.from.username || ctx.from.first_name}, chat ID: ${ctx.chat.id}`);
+});
+
 bot.use((ctx, next) => {
   if (ctx.chat.type === 'private' && isAdmin(ctx)) {
     return next();
