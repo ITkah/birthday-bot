@@ -8,9 +8,10 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 const BIRTHDAYS_FILE = './birthdays.json';
 const CONFIG_FILE = './config.json';
 const CHAT_ID = process.env.CHAT_ID;
+const ADMIN_ID = Number(process.env.ADMIN_ID);
 
 function isAdmin(ctx) {
-  return ctx.from.id === Number(process.env.ADMIN_ID);
+  return ctx.from.id === ADMIN_ID;
 }
 
 function loadBirthdays() {
@@ -41,15 +42,17 @@ function saveConfig(data) {
   console.log('✅ Config saved.');
 }
 
-bot.on('message', (ctx) => {
-  console.log(`📢 Message from ${ctx.from.username || ctx.from.first_name}, chat ID: ${ctx.chat.id}`);
+bot.use((ctx, next) => {
+  if (ctx.chat.type === 'private') {
+    if (!isAdmin(ctx)) {
+      return ctx.reply('⛔ You are not allowed to use this bot.');
+    }
+  }
+  return next();
 });
 
-bot.use((ctx, next) => {
-  if (ctx.chat.type === 'private' && isAdmin(ctx)) {
-    return next();
-  }
-  return; 
+bot.on('message', (ctx) => {
+  console.log(`📢 Message from ${ctx.from.username || ctx.from.first_name}, chat ID: ${ctx.chat.id}`);
 });
 
 bot.start((ctx) => {
@@ -137,7 +140,6 @@ bot.command('getgreeting', (ctx) => {
   ctx.reply(`📨 Current greeting:\n${config.greeting}`);
 });
 
-
 bot.command('test', (ctx) => {
   console.log('/test');
   const today = new Date().toISOString().slice(5, 10);
@@ -157,7 +159,7 @@ bot.command('test', (ctx) => {
   ctx.reply('✅ Test message sent to group.');
 });
 
-// ✅ Ежедневно поздравляем в 09:00 по серверу
+
 cron.schedule('0 9 * * *', () => {
   console.log('⏰ Cron triggered at 09:00');
   const today = new Date().toISOString().slice(5, 10);
