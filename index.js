@@ -43,13 +43,16 @@ function saveConfig(data) {
 }
 
 bot.use((ctx, next) => {
-  if (ctx.chat.type === 'private') {
-    if (!isAdmin(ctx)) {
-      return ctx.reply('⛔ You are not allowed to use this bot.');
-    }
+  const isPrivate = ctx.chat.type === 'private';
+  const isFromAdmin = isAdmin(ctx);
+
+  if (isPrivate && !isFromAdmin) {
+    return; 
   }
-  return next();
+
+  return next(); 
 });
+
 
 bot.on('message', (ctx) => {
   console.log(`📢 Message from ${ctx.from.username || ctx.from.first_name}, chat ID: ${ctx.chat.id}`);
