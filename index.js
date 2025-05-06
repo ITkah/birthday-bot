@@ -35,6 +35,10 @@ bot.use((ctx, next) => {
     }
     return next();
 });
+
+bot.on('message', (ctx) => {
+  console.log('📢 Group chat ID:', ctx.chat.id);
+});
   
 bot.start((ctx) =>
   ctx.reply('👋 Hi! I am a birthday bot. Use /add, /remove, /update, /setgreeting, /list etc.')
