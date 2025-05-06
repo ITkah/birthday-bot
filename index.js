@@ -37,27 +37,29 @@ function saveConfig(data) {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2));
 }
 
+// 📩 Log any message for debugging
 bot.on('message', (ctx) => {
-  console.log('📩 Incoming message:', ctx.message.text);
-  console.log('Chat ID:', ctx.chat.id);
+  console.log('📩 Message:', ctx.message.text);
   console.log('Chat type:', ctx.chat.type);
-  console.log('From user:', ctx.from.username, ctx.from.id);
+  console.log('Chat ID:', ctx.chat.id);
+  console.log('User:', ctx.from.username, ctx.from.id);
 });
 
-// bot.use((ctx, next) => {
-//   if (ctx.chat.type === 'private') {
-//     return next();
-//   }
-//   return;
-// });
+// Only allow commands in private chat
+bot.use((ctx, next) => {
+  if (ctx.chat.type === 'private') {
+    return next();
+  }
+  return;
+});
 
 bot.start((ctx) => {
   console.log('/start triggered');
-  ctx.reply('👋 Hi! I`m a congratulator bot. Use commands /add, /remove, /list и т.д.');
+  return ctx.reply('👋 Hi! I`m a congratulator bot. Use /add, /remove, /update, /list, /setgreeting etc.');
 });
 
 bot.command('whoami', (ctx) => {
-  ctx.reply(`🆔 Your Telegram ID: ${ctx.from.id}`);
+  return ctx.reply(`🆔 Your Telegram ID: ${ctx.from.id}`);
 });
 
 bot.command('add', (ctx) => {
@@ -67,12 +69,12 @@ bot.command('add', (ctx) => {
 
   const birthdays = loadBirthdays();
   if (birthdays.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-    return ctx.reply('⚠ Such a person already exists.');
+    return ctx.reply('⚠ This person is already in the list.');
   }
 
   birthdays.push({ name, date, username });
   saveBirthdays(birthdays);
-  ctx.reply(`✅ Added: ${name} (${date}) — @${username}`);
+  return ctx.reply(`✅ Added: ${name} (${date}) — @${username}`);
 });
 
 bot.command('remove', (ctx) => {
@@ -83,9 +85,9 @@ bot.command('remove', (ctx) => {
   const before = birthdays.length;
   birthdays = birthdays.filter(p => p.name.toLowerCase() !== name.toLowerCase());
 
-  if (birthdays.length === before) return ctx.reply('⚠ Such a person has not been found..');
+  if (birthdays.length === before) return ctx.reply('⚠ Person not found.');
   saveBirthdays(birthdays);
-  ctx.reply(`🗑 Удалено: ${name}`);
+  return ctx.reply(`🗑 Removed: ${name}`);
 });
 
 bot.command('update', (ctx) => {
@@ -95,39 +97,40 @@ bot.command('update', (ctx) => {
 
   const birthdays = loadBirthdays();
   const person = birthdays.find(p => p.name.toLowerCase() === name.toLowerCase());
-  if (!person) return ctx.reply('⚠ Such a person has not been found..');
+  if (!person) return ctx.reply('⚠ Person not found.');
 
   person.date = newDate;
   person.username = newUsername;
   saveBirthdays(birthdays);
-  ctx.reply(`✏ Updated: ${name} → ${newDate}, @${newUsername}`);
+  return ctx.reply(`✏ Updated: ${name} → ${newDate}, @${newUsername}`);
 });
 
 bot.command('list', (ctx) => {
   const birthdays = loadBirthdays();
-  if (!birthdays.length) return ctx.reply('📭 Список пуст.');
+  if (!birthdays.length) return ctx.reply('📭 The list is empty.');
 
   const list = birthdays.map(p => `• ${p.name} — ${p.date} — @${p.username}`).join('\n');
-  ctx.reply(`📋 List of birthdays:\n${list}`);
+  return ctx.reply(`📋 Birthday list:\n${list}`);
 });
 
 bot.command('setgreeting', (ctx) => {
   const text = ctx.message.text.split(' ').slice(1).join(' ');
   if (!text.includes('{name}') || !text.includes('{username}')) {
-    return ctx.reply('❗ The template must contain {name} and {username}');
+    return ctx.reply('❗ Template must include {name} and {username}');
   }
 
   const config = loadConfig();
   config.greeting = text;
   saveConfig(config);
-  ctx.reply('✅ Congratulation template updated.');
+  return ctx.reply('✅ Greeting template updated.');
 });
 
 bot.command('getgreeting', (ctx) => {
   const config = loadConfig();
-  ctx.reply(`📨 Current template:\n${config.greeting}`);
+  return ctx.reply(`📨 Current template:\n${config.greeting}`);
 });
 
+// Used to manually test greeting message
 bot.command('test', (ctx) => {
   const today = new Date().toISOString().slice(5, 10);
   const birthdays = loadBirthdays();
@@ -140,10 +143,10 @@ bot.command('test', (ctx) => {
     }
   });
 
-  ctx.reply('✅ Test message sent to the group.');
+  return ctx.reply('✅ Test message sent to the group.');
 });
 
-
+// Cron daily greeting at 09:00
 cron.schedule('0 9 * * *', () => {
   const today = new Date().toISOString().slice(5, 10);
   const birthdays = loadBirthdays();
