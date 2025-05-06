@@ -29,7 +29,7 @@ function loadConfig() {
   try {
     return JSON.parse(fs.readFileSync(CONFIG_FILE));
   } catch {
-    return { greeting: 'Happy Birthday, {name}! @{username}' };
+    return { greeting: 'Happy birthday, {name}! (@{username})' };
   }
 }
 
@@ -37,46 +37,44 @@ function saveConfig(data) {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2));
 }
 
-// 📩 Log any message for debugging
-bot.on('message', (ctx) => {
-  console.log('📩 Message:', ctx.message.text);
-  console.log('Chat type:', ctx.chat.type);
-  console.log('Chat ID:', ctx.chat.id);
-  console.log('User:', ctx.from.username, ctx.from.id);
-});
-
-// Only allow commands in private chat
+// 🟢 Allow only admin in private chat to use commands
 bot.use((ctx, next) => {
   if (ctx.chat.type === 'private') {
-    return next();
+    if (isAdmin(ctx)) return next();
+    return;
   }
-  return;
+  // Allow messages in group (only for cron greetings)
+  return next();
 });
 
+// 👋 Start
 bot.start((ctx) => {
-  console.log('/start triggered');
-  return ctx.reply('👋 Hi! I`m a congratulator bot. Use /add, /remove, /update, /list, /setgreeting etc.');
+  console.log('/start');
+  ctx.reply('👋 Hi! I am a congratulator bot. Use /add, /remove, /update, /list, /setgreeting, /test etc.');
 });
 
+// 🔎 Whoami
 bot.command('whoami', (ctx) => {
-  return ctx.reply(`🆔 Your Telegram ID: ${ctx.from.id}`);
+  ctx.reply(`🆔 Your Telegram ID: ${ctx.from.id}`);
 });
 
+// ➕ Add
 bot.command('add', (ctx) => {
   const args = ctx.message.text.split(' ').slice(1);
   if (args.length < 3) return ctx.reply('❗ Format: /add Name MM-DD username');
   const [name, date, username] = args;
-
   const birthdays = loadBirthdays();
+
   if (birthdays.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-    return ctx.reply('⚠ This person is already in the list.');
+    return ctx.reply('⚠ This person already exists.');
   }
 
   birthdays.push({ name, date, username });
   saveBirthdays(birthdays);
-  return ctx.reply(`✅ Added: ${name} (${date}) — @${username}`);
+  ctx.reply(`✅ Added: ${name} (${date}) — @${username}`);
 });
 
+// 🗑 Remove
 bot.command('remove', (ctx) => {
   const name = ctx.message.text.split(' ').slice(1).join(' ');
   if (!name) return ctx.reply('❗ Format: /remove Name');
@@ -87,9 +85,10 @@ bot.command('remove', (ctx) => {
 
   if (birthdays.length === before) return ctx.reply('⚠ Person not found.');
   saveBirthdays(birthdays);
-  return ctx.reply(`🗑 Removed: ${name}`);
+  ctx.reply(`🗑 Removed: ${name}`);
 });
 
+// ✏ Update
 bot.command('update', (ctx) => {
   const args = ctx.message.text.split(' ').slice(1);
   if (args.length < 3) return ctx.reply('❗ Format: /update Name MM-DD username');
@@ -102,35 +101,37 @@ bot.command('update', (ctx) => {
   person.date = newDate;
   person.username = newUsername;
   saveBirthdays(birthdays);
-  return ctx.reply(`✏ Updated: ${name} → ${newDate}, @${newUsername}`);
+  ctx.reply(`✏ Updated: ${name} → ${newDate}, @${newUsername}`);
 });
 
+// 📋 List
 bot.command('list', (ctx) => {
   const birthdays = loadBirthdays();
-  if (!birthdays.length) return ctx.reply('📭 The list is empty.');
-
+  if (!birthdays.length) return ctx.reply('📭 Birthday list is empty.');
   const list = birthdays.map(p => `• ${p.name} — ${p.date} — @${p.username}`).join('\n');
-  return ctx.reply(`📋 Birthday list:\n${list}`);
+  ctx.reply(`📋 Birthday list:\n${list}`);
 });
 
+// ⚙ Set greeting
 bot.command('setgreeting', (ctx) => {
   const text = ctx.message.text.split(' ').slice(1).join(' ');
   if (!text.includes('{name}') || !text.includes('{username}')) {
-    return ctx.reply('❗ Template must include {name} and {username}');
+    return ctx.reply('❗ Template must contain {name} and {username}');
   }
 
   const config = loadConfig();
   config.greeting = text;
   saveConfig(config);
-  return ctx.reply('✅ Greeting template updated.');
+  ctx.reply('✅ Greeting template updated.');
 });
 
+// 📩 Get greeting
 bot.command('getgreeting', (ctx) => {
   const config = loadConfig();
-  return ctx.reply(`📨 Current template:\n${config.greeting}`);
+  ctx.reply(`📨 Current template:\n${config.greeting}`);
 });
 
-// Used to manually test greeting message
+// 🧪 Test command
 bot.command('test', (ctx) => {
   const today = new Date().toISOString().slice(5, 10);
   const birthdays = loadBirthdays();
@@ -140,13 +141,14 @@ bot.command('test', (ctx) => {
     if (p.date === today) {
       const msg = config.greeting.replace('{name}', p.name).replace('{username}', p.username);
       bot.telegram.sendMessage(CHAT_ID, msg);
+      console.log(`✅ Sent greeting to ${p.name}`);
     }
   });
 
-  return ctx.reply('✅ Test message sent to the group.');
+  ctx.reply('✅ Test message sent to group.');
 });
 
-// Cron daily greeting at 09:00
+// ⏰ Cron job at 09:00
 cron.schedule('0 9 * * *', () => {
   const today = new Date().toISOString().slice(5, 10);
   const birthdays = loadBirthdays();
@@ -160,6 +162,11 @@ cron.schedule('0 9 * * *', () => {
       bot.telegram.sendMessage(CHAT_ID, message);
     }
   });
+});
+
+// ✅ Log chat info (for debug)
+bot.on('message', (ctx) => {
+  console.log(`📩 Message from ${ctx.from.username || ctx.from.first_name}, chat ID: ${ctx.chat.id}, type: ${ctx.chat.type}`);
 });
 
 bot.launch();
