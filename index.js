@@ -38,17 +38,21 @@ function saveConfig(data) {
 }
 
 bot.on('message', (ctx) => {
-  console.log(`📢 Message from ${ctx.from.username || ctx.from.first_name}, chat ID: ${ctx.chat.id}`);
+  console.log('📩 Incoming message:', ctx.message.text);
+  console.log('Chat ID:', ctx.chat.id);
+  console.log('Chat type:', ctx.chat.type);
+  console.log('From user:', ctx.from.username, ctx.from.id);
 });
 
-bot.use((ctx, next) => {
-  if (ctx.chat.type === 'private') {
-    return next();
-  }
-  return; 
-});
+// bot.use((ctx, next) => {
+//   if (ctx.chat.type === 'private') {
+//     return next();
+//   }
+//   return;
+// });
 
 bot.start((ctx) => {
+  console.log('/start triggered');
   ctx.reply('👋 Hi! I`m a congratulator bot. Use commands /add, /remove, /list и т.д.');
 });
 
