@@ -10,9 +10,7 @@ const CONFIG_FILE = './config.json';
 const CHAT_ID = process.env.CHAT_ID;
 
 function isAdmin(ctx) {
-  const isAdmin = String(ctx.from.id) === process.env.ADMIN_ID;
-  console.log(`👤 User ${ctx.from.id} is${isAdmin ? '' : ' NOT'} admin.`);
-  return isAdmin;
+  return ctx.from.id === Number(process.env.ADMIN_ID);
 }
 
 function loadBirthdays() {
@@ -46,11 +44,13 @@ function saveConfig(data) {
 }
 
 bot.use((ctx, next) => {
-  if (ctx.chat.type === 'private' && !isAdmin(ctx)) {
-    console.log('🔒 Message from non-admin ignored.');
-    return;
+  if (ctx.chat.type === 'private' && isAdmin(ctx)) {
+    return next(); 
   }
-  return next();
+  if (ctx.chat.type !== 'private') {
+    return next(); 
+  }
+  return; 
 });
 
 bot.on('message', (ctx) => {
