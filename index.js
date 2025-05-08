@@ -149,7 +149,7 @@ bot.command('test', (ctx) => {
 });
 
 // ⏰ Cron job at 09:00
-cron.schedule('0 9 * * *', () => {
+cron.schedule('0 6 * * *', () => {
   const today = new Date().toISOString().slice(5, 10);
   const birthdays = loadBirthdays();
   const config = loadConfig();
