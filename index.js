@@ -1,4 +1,3 @@
-require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const fs = require('fs');
 const cron = require('node-cron');
@@ -137,16 +136,21 @@ bot.command('test', (ctx) => {
   const birthdays = loadBirthdays();
   const config = loadConfig();
 
+  console.log('✅ ENV CHAT_ID:', process.env.CHAT_ID);
+  console.log('📆 Today is:', today);
+  console.log('🎂 Birthdays today:', birthdays.filter(p => p.date === today));
+
   birthdays.forEach(p => {
     if (p.date === today) {
       const msg = config.greeting.replace('{name}', p.name).replace('{username}', p.username);
-      bot.telegram.sendMessage(CHAT_ID, msg);
+      bot.telegram.sendMessage(process.env.CHAT_ID, msg);
       console.log(`✅ Sent greeting to ${p.name}`);
     }
   });
 
   ctx.reply('✅ Test message sent to group.');
 });
+
 
 // ⏰ Cron job at 09:00
 cron.schedule('0 6 * * *', () => {
